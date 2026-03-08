@@ -1,0 +1,477 @@
+{
+  "self_intro": {
+    "id": "q_self_intro_001",
+    "type": "self_intro",
+    "category": "自我介绍",
+    "content": "请做一个 3 分钟的自我介绍，重点介绍你的教育背景、技术栈和项目经验。",
+    "difficulty": "easy",
+    "time_limit": 180,
+    "tags": [
+      "自我介绍"
+    ]
+  },
+  "skill_tests": {
+    "Python": [
+      {
+        "id": "q_python_001",
+        "type": "skill_test",
+        "category": "Python",
+        "content": "请解释 Python 中的 GIL（全局解释器锁）是什么？它对多线程程序有什么影响？",
+        "difficulty": "medium",
+        "time_limit": 300,
+        "reference_answer": "GIL 是 Python 解释器（CPython）中的一个互斥锁，确保同一时刻只有一个线程执行 Python 字节码。这意味着即使在多核 CPU 上，Python 多线程程序也无法真正并行执行 CPU 密集型任务。对 I/O 密集型任务影响较小，因为线程在等待 I/O 时会释放 GIL。解决方案包括使用多进程（multiprocessing）、使用 C 扩展、或使用其他 Python 实现（如 Jython、IronPython）。",
+        "tags": [
+          "Python",
+          "并发",
+          "GIL"
+        ]
+      },
+      {
+        "id": "q_python_002",
+        "type": "skill_test",
+        "category": "Python",
+        "content": "Python 中的装饰器是什么？请举例说明如何使用装饰器。",
+        "difficulty": "medium",
+        "time_limit": 300,
+        "reference_answer": "装饰器是一个函数，接受一个函数作为参数并返回一个新函数，用于在不修改原函数代码的情况下增加额外功能。常见用途包括日志记录、性能测试、权限验证等。示例：@login_required 装饰器可以在函数执行前检查用户是否登录。",
+        "tags": [
+          "Python",
+          "装饰器"
+        ]
+      },
+      {
+        "id": "q_python_003",
+        "type": "skill_test",
+        "category": "Python",
+        "content": "请解释 Python 中的列表推导式（List Comprehension），并说明它相比传统 for 循环的优势。",
+        "difficulty": "easy",
+        "time_limit": 240,
+        "reference_answer": "列表推导式是一种简洁的创建列表的方式，语法为 [expression for item in iterable if condition]。优势包括：1) 代码更简洁易读；2) 执行速度通常更快（底层优化）；3) 更符合 Python 的编程风格。示例：[x**2 for x in range(10) if x % 2 == 0] 生成偶数的平方列表。",
+        "tags": [
+          "Python",
+          "列表推导式"
+        ]
+      }
+    ],
+    "Java": [
+      {
+        "id": "q_java_001",
+        "type": "skill_test",
+        "category": "Java",
+        "content": "请解释 Java 中的垃圾回收（GC）机制，以及常见的垃圾回收算法。",
+        "difficulty": "medium",
+        "time_limit": 300,
+        "reference_answer": "Java 的垃圾回收机制自动管理内存，回收不再使用的对象。常见算法包括：1) 标记-清除（Mark-Sweep）；2) 复制算法（Copying）；3) 标记-整理（Mark-Compact）；4) 分代收集（Generational）。现代 JVM 通常使用分代收集，将堆分为新生代和老年代，针对不同代使用不同的回收策略。",
+        "tags": [
+          "Java",
+          "GC",
+          "内存管理"
+        ]
+      }
+    ],
+    "C++": [
+      {
+        "id": "q_cpp_001",
+        "type": "skill_test",
+        "category": "C++",
+        "content": "请解释 C++ 中指针和引用的区别。",
+        "difficulty": "easy",
+        "time_limit": 240,
+        "reference_answer": "主要区别：1) 指针可以为空（nullptr），引用必须绑定到对象；2) 指针可以重新赋值指向其他对象，引用一旦绑定不可改变；3) 指针需要解引用（*p）访问值，引用直接使用；4) 指针有自己的内存地址，引用是别名；5) 指针可以有多级（指针的指针），引用只有一级。",
+        "tags": [
+          "C++",
+          "指针",
+          "引用"
+        ]
+      },
+      {
+        "id": "q_cpp_002",
+        "type": "skill_test",
+        "category": "C++",
+        "content": "请解释 C++ 中的虚函数（virtual function）和多态性。",
+        "difficulty": "medium",
+        "time_limit": 300,
+        "reference_answer": "虚函数是在基类中用 virtual 关键字声明的函数，允许派生类重写（override）。通过基类指针或引用调用虚函数时，会根据对象的实际类型调用相应的函数实现，这就是多态性（运行时多态）。实现机制是虚函数表（vtable），每个包含虚函数的类都有一个 vtable，对象中有一个指向 vtable 的指针（vptr）。",
+        "tags": [
+          "C++",
+          "虚函数",
+          "多态"
+        ]
+      },
+      {
+        "id": "q_cpp_003",
+        "type": "skill_test",
+        "category": "C++",
+        "content": "请解释 RAII 的思想，以及 `unique_ptr`、`shared_ptr`、`weak_ptr` 的区别和适用场景。",
+        "difficulty": "medium",
+        "time_limit": 300,
+        "reference_answer": "RAII 的核心是把资源生命周期绑定到对象生命周期，在构造时申请资源、析构时自动释放资源，避免泄漏。unique_ptr 表示独占所有权，开销低且语义清晰；shared_ptr 通过引用计数共享所有权；weak_ptr 不拥有对象，只用于观察 shared_ptr 管理的对象并打破循环引用。",
+        "tags": [
+          "C++",
+          "RAII",
+          "智能指针"
+        ]
+      },
+      {
+        "id": "q_cpp_004",
+        "type": "skill_test",
+        "category": "C++",
+        "content": "`std::vector` 和 `std::list` 的底层结构与适用场景分别是什么？性能上如何权衡？",
+        "difficulty": "medium",
+        "time_limit": 240,
+        "reference_answer": "vector 使用连续内存，支持 O(1) 随机访问，尾插均摊 O(1)，缓存友好，适合读多写少或需要随机访问的场景。list 通常是双向链表，中间插入删除开销低，但随机访问 O(n)，额外指针开销较大且缓存局部性差。大多数情况下优先考虑 vector，只有频繁中间插删且无需随机访问时才考虑 list。",
+        "tags": [
+          "C++",
+          "STL",
+          "容器"
+        ]
+      }
+    ],
+    "数据结构": [
+      {
+        "id": "q_ds_001",
+        "type": "skill_test",
+        "category": "数据结构",
+        "content": "请解释哈希表（Hash Table）的工作原理，以及如何处理哈希冲突。",
+        "difficulty": "medium",
+        "time_limit": 300,
+        "reference_answer": "哈希表通过哈希函数将键映射到数组索引，实现 O(1) 的查找、插入和删除。哈希冲突处理方法：1) 链地址法（Chaining）：每个槽位存储一个链表；2) 开放寻址法（Open Addressing）：线性探测、二次探测、双重哈希。负载因子过高时需要扩容（rehashing）。",
+        "tags": [
+          "数据结构",
+          "哈希表"
+        ]
+      },
+      {
+        "id": "q_ds_002",
+        "type": "skill_test",
+        "category": "数据结构",
+        "content": "请比较数组和链表的优缺点，以及各自适用的场景。",
+        "difficulty": "easy",
+        "time_limit": 240,
+        "reference_answer": "数组：优点是随机访问 O(1)，缓存友好；缺点是插入删除 O(n)，大小固定。链表：优点是插入删除 O(1)（已知位置），动态大小；缺点是随机访问 O(n)，额外内存开销。适用场景：数组适合频繁随机访问、大小固定的场景；链表适合频繁插入删除、大小动态变化的场景。",
+        "tags": [
+          "数据结构",
+          "数组",
+          "链表"
+        ]
+      }
+    ],
+    "算法": [
+      {
+        "id": "q_algo_001",
+        "type": "skill_test",
+        "category": "算法",
+        "content": "请解释快速排序（Quick Sort）的原理和时间复杂度。",
+        "difficulty": "medium",
+        "time_limit": 300,
+        "reference_answer": "快速排序是分治算法：1) 选择一个基准元素（pivot）；2) 将数组分为小于和大于基准的两部分（partition）；3) 递归排序两部分。平均时间复杂度 O(n log n)，最坏情况 O(n²)（数组已排序且每次选择最小/最大元素作为基准）。空间复杂度 O(log n)（递归栈）。优化方法包括随机选择基准、三数取中等。",
+        "tags": [
+          "算法",
+          "排序",
+          "快速排序"
+        ]
+      }
+    ],
+    "操作系统": [
+      {
+        "id": "q_os_001",
+        "type": "skill_test",
+        "category": "操作系统",
+        "content": "请解释进程和线程的区别。",
+        "difficulty": "easy",
+        "time_limit": 240,
+        "reference_answer": "进程是资源分配的基本单位，线程是 CPU 调度的基本单位。主要区别：1) 进程有独立的地址空间，线程共享进程的地址空间；2) 进程间通信（IPC）复杂，线程间通信简单；3) 进程创建和切换开销大，线程开销小；4) 进程崩溃不影响其他进程，线程崩溃可能导致整个进程崩溃。",
+        "tags": [
+          "操作系统",
+          "进程",
+          "线程"
+        ]
+      },
+      {
+        "id": "q_os_002",
+        "type": "skill_test",
+        "category": "操作系统",
+        "content": "请解释死锁的四个必要条件，以及如何预防死锁。",
+        "difficulty": "medium",
+        "time_limit": 300,
+        "reference_answer": "死锁的四个必要条件：1) 互斥：资源不能共享；2) 持有并等待：进程持有资源的同时等待其他资源；3) 不可剥夺：资源不能被强制释放；4) 循环等待：存在进程资源等待环路。预防方法：破坏任一条件，如资源一次性分配（破坏持有并等待）、资源有序分配（破坏循环等待）、资源抢占（破坏不可剥夺）。",
+        "tags": [
+          "操作系统",
+          "死锁"
+        ]
+      }
+    ],
+    "计算机网络": [
+      {
+        "id": "q_net_001",
+        "type": "skill_test",
+        "category": "计算机网络",
+        "content": "请解释 TCP 和 UDP 的区别，以及各自的适用场景。",
+        "difficulty": "easy",
+        "time_limit": 240,
+        "reference_answer": "TCP：面向连接、可靠传输、有序、流量控制、拥塞控制，适用于文件传输、HTTP、邮件等需要可靠性的场景。UDP：无连接、不可靠、无序、开销小、速度快，适用于视频直播、在线游戏、DNS 查询等对实时性要求高、可容忍少量丢包的场景。",
+        "tags": [
+          "计算机网络",
+          "TCP",
+          "UDP"
+        ]
+      },
+      {
+        "id": "q_net_002",
+        "type": "skill_test",
+        "category": "计算机网络",
+        "content": "请解释 TCP 三次握手的过程和原因。",
+        "difficulty": "medium",
+        "time_limit": 300,
+        "reference_answer": "三次握手过程：1) 客户端发送 SYN；2) 服务器回复 SYN+ACK；3) 客户端发送 ACK。原因：确保双方都能发送和接收数据，防止已失效的连接请求突然又传到服务器导致错误。两次握手无法确认客户端的接收能力，四次握手冗余。三次握手是建立可靠连接的最小次数。",
+        "tags": [
+          "计算机网络",
+          "TCP",
+          "三次握手"
+        ]
+      },
+      {
+        "id": "q_net_003",
+        "type": "skill_test",
+        "category": "计算机网络",
+        "content": "请解释常见的 HTTP 状态码（200、301、404、500）的含义。",
+        "difficulty": "easy",
+        "time_limit": 180,
+        "reference_answer": "200 OK：请求成功；301 Moved Permanently：永久重定向；404 Not Found：资源不存在；500 Internal Server Error：服务器内部错误。其他常见状态码：302 临时重定向、400 请求错误、401 未授权、403 禁止访问、502 网关错误、503 服务不可用。",
+        "tags": [
+          "计算机网络",
+          "HTTP"
+        ]
+      }
+    ],
+    "数据库": [
+      {
+        "id": "q_db_001",
+        "type": "skill_test",
+        "category": "数据库",
+        "content": "请解释数据库索引的作用和原理，以及索引的优缺点。",
+        "difficulty": "medium",
+        "time_limit": 300,
+        "reference_answer": "索引是一种数据结构（通常是 B+ 树），用于加速数据查询。原理：通过维护排序的数据结构，将 O(n) 的全表扫描优化为 O(log n) 的查找。优点：加速查询、排序、分组。缺点：占用额外存储空间、降低写入性能（需要维护索引）、过多索引影响查询优化器选择。",
+        "tags": [
+          "数据库",
+          "索引"
+        ]
+      },
+      {
+        "id": "q_db_002",
+        "type": "skill_test",
+        "category": "数据库",
+        "content": "请解释数据库事务的 ACID 特性。",
+        "difficulty": "medium",
+        "time_limit": 300,
+        "reference_answer": "ACID 是数据库事务的四个特性：1) 原子性（Atomicity）：事务中的操作要么全部成功，要么全部失败回滚；2) 一致性（Consistency）：事务执行前后数据库保持一致状态；3) 隔离性（Isolation）：并发事务之间相互隔离，不互相干扰；4) 持久性（Durability）：事务提交后，修改永久保存。",
+        "tags": [
+          "数据库",
+          "事务",
+          "ACID"
+        ]
+      },
+      {
+        "id": "q_db_003",
+        "type": "skill_test",
+        "category": "数据库",
+        "content": "请解释 SQL 查询优化的常见方法。",
+        "difficulty": "medium",
+        "time_limit": 300,
+        "reference_answer": "常见优化方法：1) 创建合适的索引；2) 避免 SELECT *，只查询需要的列；3) 使用 LIMIT 限制结果集；4) 避免在 WHERE 子句中对索引列使用函数；5) 使用 JOIN 代替子查询；6) 分析执行计划（EXPLAIN）；7) 分区表；8) 读写分离；9) 缓存查询结果。",
+        "tags": [
+          "数据库",
+          "SQL",
+          "优化"
+        ]
+      }
+    ],
+    "React": [
+      {
+        "id": "q_react_001",
+        "type": "skill_test",
+        "category": "React",
+        "content": "请解释 React 中的虚拟 DOM（Virtual DOM）和 Diff 算法。",
+        "difficulty": "medium",
+        "time_limit": 300,
+        "reference_answer": "虚拟 DOM 是真实 DOM 的 JavaScript 对象表示。当状态变化时，React 先更新虚拟 DOM，然后通过 Diff 算法比较新旧虚拟 DOM 的差异，最后只更新变化的部分到真实 DOM。Diff 算法优化：1) 同层比较；2) 不同类型元素直接替换；3) 使用 key 优化列表渲染。这样避免了频繁操作真实 DOM，提升性能。",
+        "tags": [
+          "React",
+          "虚拟DOM"
+        ]
+      }
+    ],
+    "Docker": [
+      {
+        "id": "q_docker_001",
+        "type": "skill_test",
+        "category": "Docker",
+        "content": "请解释 Docker 容器和虚拟机的区别。",
+        "difficulty": "easy",
+        "time_limit": 240,
+        "reference_answer": "容器：共享宿主机内核，轻量级，启动快（秒级），资源占用少，隔离性较弱。虚拟机：完整的操作系统，重量级，启动慢（分钟级），资源占用多，隔离性强。容器适合微服务、快速部署；虚拟机适合需要完全隔离、运行不同操作系统的场景。",
+        "tags": [
+          "Docker",
+          "容器"
+        ]
+      }
+    ],
+    "Go": [
+      {
+        "id": "q_go_001",
+        "type": "skill_test",
+        "category": "Go",
+        "content": "??? Go ? goroutine ????????? goroutine ????????????",
+        "difficulty": "medium",
+        "time_limit": 300,
+        "reference_answer": "goroutine ? Go ??????????????????????????????????????Go ????? GMP ??????? goroutine ??????????????????????",
+        "tags": [
+          "Go",
+          "goroutine",
+          "??"
+        ]
+      },
+      {
+        "id": "q_go_002",
+        "type": "skill_test",
+        "category": "Go",
+        "content": "channel ?????????? channel ???? channel ????????????",
+        "difficulty": "medium",
+        "time_limit": 240,
+        "reference_answer": "channel ?? goroutine ????????????? channel ??????????????????? channel ??????????????????????????????????????????",
+        "tags": [
+          "Go",
+          "channel",
+          "??"
+        ]
+      },
+      {
+        "id": "q_go_003",
+        "type": "skill_test",
+        "category": "Go",
+        "content": "Go ? `context` ???????????????????????????",
+        "difficulty": "medium",
+        "time_limit": 300,
+        "reference_answer": "context ???????????????????????????????????????????????????????????????????????? cancel ?????????????????",
+        "tags": [
+          "Go",
+          "context",
+          "????"
+        ]
+      }
+    ],
+    "JavaScript": [
+      {
+        "id": "q_js_001",
+        "type": "skill_test",
+        "category": "JavaScript",
+        "content": "??? JavaScript ????closure???????????????????????",
+        "difficulty": "medium",
+        "time_limit": 240,
+        "reference_answer": "???????????????????????????????????????????????????????????????????????????????????????????????",
+        "tags": [
+          "JavaScript",
+          "??",
+          "???"
+        ]
+      },
+      {
+        "id": "q_js_002",
+        "type": "skill_test",
+        "category": "JavaScript",
+        "content": "????????Event Loop??????macrotask??????microtask???????",
+        "difficulty": "medium",
+        "time_limit": 300,
+        "reference_answer": "JavaScript ?????????????????????????????????????????? Promise.then?queueMicrotask????????????? setTimeout?I/O ???????????????????",
+        "tags": [
+          "JavaScript",
+          "Event Loop",
+          "??"
+        ]
+      },
+      {
+        "id": "q_js_003",
+        "type": "skill_test",
+        "category": "JavaScript",
+        "content": "`this` ? JavaScript ????????????????????????????????????",
+        "difficulty": "medium",
+        "time_limit": 300,
+        "reference_answer": "this ??????????????????????????? undefined???????????????????call/apply/bind ??????????????? this????????????? this??????????????????",
+        "tags": [
+          "JavaScript",
+          "this",
+          "??"
+        ]
+      }
+    ]
+  },
+  "scenario_questions": [
+    {
+      "id": "q_scenario_001",
+      "type": "scenario",
+      "category": "系统设计",
+      "content": "设计一个短链接服务（类似 bit.ly），需要考虑哪些关键问题？请说明你的设计思路。",
+      "difficulty": "hard",
+      "time_limit": 600,
+      "reference_answer": "关键考虑：1) 短链生成算法（哈希、自增 ID + Base62 编码）；2) 数据存储（KV 存储如 Redis、数据库）；3) 高并发处理（缓存、负载均衡）；4) 重定向方式（301 永久、302 临时）；5) 统计分析（点击量、来源）；6) 过期策略；7) 防滥用（限流、验证码）；8) 自定义短链；9) 分布式 ID 生成。",
+      "tags": [
+        "系统设计",
+        "后端",
+        "高并发"
+      ]
+    },
+    {
+      "id": "q_scenario_002",
+      "type": "scenario",
+      "category": "问题排查",
+      "content": "线上服务突然变慢，用户反馈响应时间从 100ms 增加到 5s，你会如何排查和解决？",
+      "difficulty": "hard",
+      "time_limit": 600,
+      "reference_answer": "排查步骤：1) 查看监控指标（CPU、内存、网络、磁盘 I/O）；2) 检查应用日志（错误、慢查询）；3) 分析数据库性能（慢查询日志、连接数）；4) 检查缓存命中率；5) 查看依赖服务状态；6) 分析代码热点（profiling）；7) 检查是否有流量突增；8) 查看是否有死锁或资源竞争。常见原因：数据库慢查询、缓存失效、内存泄漏、网络问题、依赖服务故障。",
+      "tags": [
+        "问题排查",
+        "性能优化",
+        "运维"
+      ]
+    },
+    {
+      "id": "q_scenario_003",
+      "type": "scenario",
+      "category": "系统设计",
+      "content": "如何设计一个高并发秒杀系统？需要考虑哪些技术点？",
+      "difficulty": "hard",
+      "time_limit": 600,
+      "reference_answer": "关键技术点：1) 前端限流（按钮置灰、验证码）；2) 后端限流（令牌桶、漏桶）；3) 缓存预热（提前加载商品信息到 Redis）；4) 库存扣减（Redis 原子操作、数据库乐观锁）；5) 消息队列削峰（异步处理订单）；6) 数据库优化（读写分离、分库分表）；7) CDN 加速静态资源；8) 防刷机制（IP 限制、用户限制）；9) 降级熔断（保护核心服务）。",
+      "tags": [
+        "系统设计",
+        "高并发",
+        "秒杀"
+      ]
+    },
+    {
+      "id": "q_scenario_004",
+      "type": "scenario",
+      "category": "技术选型",
+      "content": "你需要为一个新项目选择数据库，有 MySQL、PostgreSQL、MongoDB 可选，你会如何选择？请说明理由。",
+      "difficulty": "medium",
+      "time_limit": 480,
+      "reference_answer": "选择依据：1) 数据结构：关系型数据选 MySQL/PostgreSQL，文档型数据选 MongoDB；2) 事务需求：强事务一致性选 PostgreSQL/MySQL，弱一致性可选 MongoDB；3) 查询复杂度：复杂 JOIN 查询选 PostgreSQL，简单查询选 MySQL/MongoDB；4) 扩展性：水平扩展选 MongoDB，垂直扩展选 PostgreSQL/MySQL；5) 团队熟悉度；6) 生态和社区支持。一般建议：传统业务系统选 MySQL，复杂查询和数据分析选 PostgreSQL，灵活 schema 和高写入选 MongoDB。",
+      "tags": [
+        "技术选型",
+        "数据库"
+      ]
+    }
+  ],
+  "reverse_questions": {
+    "id": "q_reverse_001",
+    "type": "reverse",
+    "category": "反问环节",
+    "content": "面试即将结束，你有什么问题想问面试官的吗？比如团队技术栈、项目方向、成长路径等。",
+    "difficulty": "easy",
+    "time_limit": 180,
+    "tags": [
+      "反问环节"
+    ]
+  }
+}

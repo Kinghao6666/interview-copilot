@@ -15,7 +15,7 @@ class QuestionBankService:
     def _load_question_bank(self) -> Dict:
         """从 JSON 文件加载题库"""
         # data/ is at project root (one level above backend/)
-        json_path = Path(__file__).parent.parent.parent.parent / "data" / "question_bank.json"
+        json_path = Path(__file__).parent.parent.parent / "data" / "question_bank.json"
         with open(json_path, "r", encoding="utf-8") as f:
             return json.load(f)
 
