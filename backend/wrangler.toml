@@ -1,0 +1,21 @@
+name = "interview-copilot-api"
+main = "main.py"
+compatibility_date = "2024-12-01"
+
+[vars]
+ENVIRONMENT = "prod"
+CORS_ORIGINS = "https://interview-copilot.pages.dev"
+OPENAI_API_BASE = "https://api.penguinsaichat.dpdns.org/v1"
+OPENAI_MODEL = "gpt-5.3-codex"
+R2_BUCKET_NAME = "interview-copilot"
+
+# Secrets (set via `wrangler secret put`):
+#   OPENAI_API_KEY
+#   SUPABASE_URL
+#   SUPABASE_KEY
+#   R2_ACCESS_KEY_ID
+#   R2_SECRET_ACCESS_KEY
+
+[[r2_buckets]]
+binding = "RESUME_BUCKET"
+bucket_name = "interview-copilot"
