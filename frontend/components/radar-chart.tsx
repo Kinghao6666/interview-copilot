@@ -53,25 +53,25 @@ export function RadarChart({ data, className = '' }: RadarChartProps) {
           <RechartsRadarChart data={chartData} cx="50%" cy="50%" outerRadius="70%">
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="rgba(246,223,143,0.62)" />
-                <stop offset="100%" stopColor="rgba(30,144,255,0.08)" />
+                <stop offset="0%" stopColor="rgba(210,192,161,0.42)" />
+                <stop offset="100%" stopColor="rgba(138,168,216,0.08)" />
               </linearGradient>
             </defs>
-            <PolarGrid stroke="rgba(255,255,255,0.08)" />
-            <PolarAngleAxis dataKey="subject" tick={{ fill: '#b6bac7', fontSize: 12 }} tickLine={false} />
+            <PolarGrid stroke="rgba(255,255,255,0.06)" />
+            <PolarAngleAxis dataKey="subject" tick={{ fill: '#d1d5df', fontSize: 12 }} tickLine={false} />
             <PolarRadiusAxis
               angle={90}
               domain={[0, 100]}
-              tick={{ fill: '#6e7486', fontSize: 10 }}
+              tick={{ fill: '#8c93a5', fontSize: 10 }}
               axisLine={false}
             />
             <Radar
               name="得分"
               dataKey="score"
-              stroke="#f6df8f"
+              stroke="#d2c0a1"
               fill={`url(#${gradientId})`}
               fillOpacity={1}
-              strokeWidth={2.4}
+              strokeWidth={2.2}
             />
           </RechartsRadarChart>
         </ResponsiveContainer>

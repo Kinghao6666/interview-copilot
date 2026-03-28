@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, useReducedMotion } from 'framer-motion';
-import { useId, useMemo } from 'react';
+import { useId, useMemo, useState, useCallback } from 'react';
 
 type SparklineTone = 'gold' | 'blue' | 'success';
 
@@ -14,24 +14,26 @@ interface TelemetrySparklineProps {
 
 const toneMap: Record<SparklineTone, { stroke: string; fillStart: string; fillEnd: string; dot: string }> = {
   gold: {
-    stroke: '#f6df8f',
-    fillStart: 'rgba(212,175,55,0.28)',
-    fillEnd: 'rgba(212,175,55,0.02)',
-    dot: '#d4af37',
+    stroke: '#e8d5b0',
+    fillStart: 'rgba(212,184,150,0.2)',
+    fillEnd: 'rgba(212,184,150,0.02)',
+    dot: '#d4b896',
   },
   blue: {
-    stroke: '#72baff',
-    fillStart: 'rgba(30,144,255,0.28)',
-    fillEnd: 'rgba(30,144,255,0.02)',
-    dot: '#1e90ff',
+    stroke: '#a8c2e8',
+    fillStart: 'rgba(138,168,216,0.2)',
+    fillEnd: 'rgba(138,168,216,0.02)',
+    dot: '#8aa8d8',
   },
   success: {
-    stroke: '#7ff5c7',
-    fillStart: 'rgba(46,204,113,0.24)',
-    fillEnd: 'rgba(46,204,113,0.02)',
-    dot: '#2ecc71',
+    stroke: '#7ae8b0',
+    fillStart: 'rgba(48,209,88,0.18)',
+    fillEnd: 'rgba(48,209,88,0.02)',
+    dot: '#30D158',
   },
 };
+
+const defaultTooltipLabels = ['进度', '节奏', '评分', '字数', '状态'];
 
 export function TelemetrySparkline({ values, labels = [], className = '', tone = 'gold' }: TelemetrySparklineProps) {
   const shouldReduceMotion = useReducedMotion();
@@ -39,6 +41,8 @@ export function TelemetrySparkline({ values, labels = [], className = '', tone =
   const chartWidth = 100;
   const chartHeight = 44;
   const colors = toneMap[tone];
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
 
   const { linePath, areaPath, points } = useMemo(() => {
     const safeValues = values.length > 1 ? values : [0, values[0] ?? 0, 100];
@@ -63,9 +67,47 @@ export function TelemetrySparkline({ values, labels = [], className = '', tone =
     };
   }, [values]);
 
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<SVGSVGElement>) => {
+      const svg = e.currentTarget;
+      const rect = svg.getBoundingClientRect();
+      const relX = (e.clientX - rect.left) / rect.width;
+      const svgX = relX * chartWidth;
+
+      let closest = 0;
+      let minDist = Infinity;
+      for (let i = 0; i < points.length; i++) {
+        const dist = Math.abs(points[i].x - svgX);
+        if (dist < minDist) {
+          minDist = dist;
+          closest = i;
+        }
+      }
+      setHoverIndex(closest);
+      setTooltipPos({ x: e.clientX, y: e.clientY });
+    },
+    [points, chartWidth],
+  );
+
+  const handleMouseLeave = useCallback(() => {
+    setHoverIndex(null);
+    setTooltipPos(null);
+  }, []);
+
+  const tooltipLabels = labels.length === values.length ? labels : defaultTooltipLabels;
+  const hoveredPoint = hoverIndex !== null ? points[hoverIndex] : null;
+
   return (
-    <div className={`telemetry-sparkline ${className}`}>
-      <svg viewBox={`0 0 ${chartWidth} ${chartHeight + 8}`} className="w-full h-full" preserveAspectRatio="none" aria-hidden="true">
+    <div className={`telemetry-sparkline relative ${className}`}>
+      <svg
+        viewBox={`0 0 ${chartWidth} ${chartHeight + 8}`}
+        className="w-full h-full"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        style={{ cursor: 'crosshair' }}
+      >
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={colors.fillStart} />
@@ -110,17 +152,42 @@ export function TelemetrySparkline({ values, labels = [], className = '', tone =
             key={`${point.x}-${point.y}-${index}`}
             cx={point.x}
             cy={point.y}
-            r="1.8"
+            r={hoverIndex === index ? 3 : 1.8}
             fill={colors.dot}
             initial={shouldReduceMotion ? false : { scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.28, delay: 0.12 + index * 0.05 }}
           />
         ))}
+
+        {hoveredPoint && (
+          <line
+            x1={hoveredPoint.x}
+            y1={0}
+            x2={hoveredPoint.x}
+            y2={chartHeight}
+            stroke={colors.stroke}
+            strokeWidth="0.8"
+            strokeDasharray="2 2"
+            opacity={0.5}
+          />
+        )}
       </svg>
 
+      {hoverIndex !== null && tooltipPos && hoveredPoint && (
+        <div
+          className="fixed z-50 pointer-events-none bg-black/80 backdrop-blur-xl border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white"
+          style={{
+            left: tooltipPos.x + 12,
+            top: tooltipPos.y - 32,
+          }}
+        >
+          {tooltipLabels[hoverIndex] ?? `#${hoverIndex + 1}`}: {Math.round(hoveredPoint.value)}%
+        </div>
+      )}
+
       {labels.length > 1 && (
-        <div className="mt-3 grid text-[10px] uppercase tracking-[0.16em] text-muted/80" style={{ gridTemplateColumns: `repeat(${labels.length}, minmax(0, 1fr))` }}>
+        <div className="mt-3 grid text-[10px] tracking-normal text-muted/80" style={{ gridTemplateColumns: `repeat(${labels.length}, minmax(0, 1fr))` }}>
           {labels.map((label) => (
             <span key={label} className="truncate text-center">
               {label}

@@ -11,9 +11,9 @@ interface AnimatedProgressProps {
 }
 
 function barColor(value: number) {
-  if (value >= 80) return 'from-emerald-400 to-green-400';
-  if (value >= 60) return 'from-amber-400 to-yellow-400';
-  return 'from-red-500 to-red-400';
+  if (value >= 80) return 'from-[#9edbbe] to-[#7ad9b0]';
+  if (value >= 60) return 'from-[#efe4d2] to-[#d2c0a1]';
+  return 'from-[#ff9d93] to-[#ff7e73]';
 }
 
 function textColor(value: number) {
@@ -34,7 +34,7 @@ export function AnimatedProgress({ value, label, showValue = true, className = '
           {showValue && <span className={textColor(value)}>{value}</span>}
         </div>
       )}
-      <div className="h-3 bg-border rounded-full overflow-hidden relative">
+      <div className="h-3 bg-white/8 rounded-full overflow-hidden relative backdrop-blur-xl">
         <motion.div
           className={`h-full rounded-full bg-gradient-to-r ${barColor(value)} relative`}
           initial={{ width: 0 }}

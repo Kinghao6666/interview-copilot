@@ -7,3 +7,6 @@ export { AILoadingIndicator } from './ai-loading';
 export { ParticleField } from './particle-field';
 export { TelemetrySparkline } from './telemetry-sparkline';
 export { SignalBars } from './signal-bars';
+export { SpeechButton } from './speech-button';
+export { ToastProvider, useToast } from './toast';
+export { Onboarding } from './onboarding';

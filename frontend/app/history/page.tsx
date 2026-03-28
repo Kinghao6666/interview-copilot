@@ -1,15 +1,18 @@
 ﻿'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronRight,
   FileText,
   History,
   Radar,
+  Search,
   Sparkles,
+  Trash2,
   Trophy,
+  X,
 } from 'lucide-react';
 import { interviewApi } from '@/lib/api';
 import {
@@ -52,9 +55,15 @@ function getScoreTone(score?: number): string {
   return 'text-danger';
 }
 
+type SortMode = 'date-desc' | 'date-asc' | 'score-desc' | 'score-asc';
+
 export default function HistoryPage() {
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortMode, setSortMode] = useState<SortMode>('date-desc');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [searchFocused, setSearchFocused] = useState(false);
 
   useEffect(() => {
     const fetchSessions = async () => {
@@ -71,13 +80,44 @@ export default function HistoryPage() {
     fetchSessions();
   }, []);
 
+  const handleDelete = useCallback((sessionId: string) => {
+    setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+    setDeletingId(null);
+  }, []);
+
   const sortedSessions = useMemo(() => {
-    return [...sessions].sort((left, right) => {
-      const leftTime = new Date(left.created_at || left.started_at || 0).getTime();
-      const rightTime = new Date(right.created_at || right.started_at || 0).getTime();
-      return rightTime - leftTime;
+    let filtered = [...sessions];
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      filtered = filtered.filter(
+        (s) =>
+          s.id.toLowerCase().includes(q) ||
+          (s.status === 'completed' ? '已完成模拟面试' : '进行中的模拟任务').includes(q)
+      );
+    }
+
+    filtered.sort((left, right) => {
+      switch (sortMode) {
+        case 'date-asc': {
+          const lt = new Date(left.created_at || left.started_at || 0).getTime();
+          const rt = new Date(right.created_at || right.started_at || 0).getTime();
+          return lt - rt;
+        }
+        case 'score-desc':
+          return (right.overall_score ?? -1) - (left.overall_score ?? -1);
+        case 'score-asc':
+          return (left.overall_score ?? -1) - (right.overall_score ?? -1);
+        default: {
+          const lt = new Date(left.created_at || left.started_at || 0).getTime();
+          const rt = new Date(right.created_at || right.started_at || 0).getTime();
+          return rt - lt;
+        }
+      }
     });
-  }, [sessions]);
+
+    return filtered;
+  }, [sessions, searchQuery, sortMode]);
 
   const completedSessions = sortedSessions.filter((session) => session.status === 'completed');
   const scoreSessions = completedSessions.filter((session) => session.overall_score !== undefined);
@@ -116,15 +156,30 @@ export default function HistoryPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[440px]">
-        <div className="premium-card premium-card-strong rounded-[28px] p-8 w-full max-w-md text-center">
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-            className="w-10 h-10 border-2 border-gold border-t-transparent rounded-full mx-auto"
-          />
-          <p className="text-white mt-5">正在同步你的历史面试档案...</p>
-          <p className="text-xs text-muted mt-2 uppercase tracking-[0.18em]">History Archive Loading</p>
+      <div className="max-w-6xl mx-auto">
+        <div className="hero-panel rounded-[32px] p-6 md:p-8 mb-6">
+          {/* Skeleton header */}
+          <div className="h-5 w-24 rounded-full bg-white/[0.06] animate-pulse mb-4" />
+          <div className="h-8 w-64 rounded-xl bg-white/[0.06] animate-pulse mb-3" />
+          <div className="h-4 w-96 rounded-lg bg-white/[0.04] animate-pulse" />
+        </div>
+        <div className="space-y-4">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="premium-card rounded-[24px] p-6 animate-pulse">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 space-y-3">
+                  <div className="h-5 w-48 rounded-lg bg-white/[0.06]" />
+                  <div className="h-4 w-32 rounded-lg bg-white/[0.04]" />
+                  <div className="flex gap-2 mt-2">
+                    <div className="h-6 w-16 rounded-full bg-white/[0.04]" />
+                    <div className="h-6 w-20 rounded-full bg-white/[0.04]" />
+                    <div className="h-6 w-14 rounded-full bg-white/[0.04]" />
+                  </div>
+                </div>
+                <div className="h-14 w-14 rounded-full bg-white/[0.06]" />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -139,11 +194,11 @@ export default function HistoryPage() {
               <div>
                 <div className="section-kicker mb-4">
                   <Sparkles className="w-3.5 h-3.5" />
-                  History Archive
+                  历史档案
                 </div>
 
                 <h1 className="text-3xl md:text-5xl font-semibold leading-tight max-w-3xl">
-                  <span className="gold-text-glow bg-gradient-to-r from-white via-[#f7e7ae] to-[#d4af37] bg-clip-text text-transparent">
+                  <span className="bg-gradient-to-r from-white via-[#f7e7ae] to-[#d4af37] bg-clip-text text-transparent">
                     把每一轮面试都沉淀成可追踪的战绩档案
                   </span>
                 </h1>
@@ -156,25 +211,25 @@ export default function HistoryPage() {
                   {[
                     {
                       value: `${sortedSessions.length}`,
-                      label: 'All Sessions',
+                      label: '全部会话',
                       hint: '总面试任务数',
                       toneClass: 'text-white',
                     },
                     {
                       value: `${completedSessions.length}`,
-                      label: 'Completed',
+                      label: '已完成',
                       hint: '已完成回合',
                       toneClass: 'text-success',
                     },
                     {
                       value: averageScore !== null ? `${averageScore}` : '--',
-                      label: 'Average Score',
+                      label: '平均分',
                       hint: '已完成任务均分',
                       toneClass: 'text-gold',
                     },
                     {
                       value: bestScore !== null ? `${bestScore}` : '--',
-                      label: 'Best Score',
+                      label: '最高分',
                       hint: '历史最高表现',
                       toneClass: 'text-blue',
                     },
@@ -187,7 +242,7 @@ export default function HistoryPage() {
                       className="signal-card rounded-[22px] p-4"
                     >
                       <p className={`text-lg font-semibold ${signal.toneClass}`}>{signal.value}</p>
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-muted mt-2">
+                      <p className="text-xs tracking-normal text-muted mt-2">
                         {signal.label}
                       </p>
                       <p className="text-xs text-white/55 mt-3 leading-5">{signal.hint}</p>
@@ -200,13 +255,13 @@ export default function HistoryPage() {
                 initial={{ opacity: 0, x: 16 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.14, duration: 0.42 }}
-                className="telemetry-panel corner-frame rounded-[28px] p-6"
+                className="telemetry-panel rounded-[28px] p-6"
               >
                 <ParticleField count={15} tone="mixed" compact />
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-[11px] uppercase tracking-[0.2em] text-gold/80">
-                      Archive Telemetry
+                    <p className="text-xs tracking-normal text-gold/80">
+                      档案数据
                     </p>
                     <h2 className="text-xl font-semibold text-white mt-2">历史档案状态</h2>
                     <p className="text-sm text-white/60 leading-6 mt-2">
@@ -221,13 +276,13 @@ export default function HistoryPage() {
                 <div className="space-y-4 mt-6">
                   {[
                     {
-                      label: 'Archive Density',
+                      label: '档案密度',
                       value: `${sortedSessions.length} sessions`,
                       percent: Math.min(100, sortedSessions.length * 12),
                       toneClass: 'text-gold',
                     },
                     {
-                      label: 'Completed Ratio',
+                      label: '完成率',
                       value:
                         sortedSessions.length > 0
                           ? `${Math.round((completedSessions.length / sortedSessions.length) * 100)}%`
@@ -239,7 +294,7 @@ export default function HistoryPage() {
                       toneClass: 'text-success',
                     },
                     {
-                      label: 'Active Sessions',
+                      label: '活跃会话',
                       value: `${activeSessions}`,
                       percent: Math.min(100, activeSessions * 20),
                       toneClass: activeSessions > 0 ? 'text-blue' : 'text-muted',
@@ -248,7 +303,7 @@ export default function HistoryPage() {
                     <div key={item.label} className="pipeline-node rounded-[22px] p-4">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <p className="text-[11px] uppercase tracking-[0.18em] text-muted">
+                          <p className="text-xs tracking-normal text-muted">
                             {item.label}
                           </p>
                           <p className="text-sm text-white mt-1">{item.value}</p>
@@ -266,7 +321,7 @@ export default function HistoryPage() {
                   <div className="chart-panel rounded-[22px] p-4">
                     <div className="flex items-center justify-between gap-3 mb-3">
                       <div>
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-muted">Archive Curve</p>
+                        <p className="text-xs tracking-normal text-muted">档案趋势</p>
                         <p className="text-sm text-white mt-1">最近会话评分与热度的连续波形</p>
                       </div>
                       <span className="data-pill text-gold">{sortedSessions.length}</span>
@@ -281,7 +336,7 @@ export default function HistoryPage() {
                   <div className="chart-panel rounded-[22px] p-4">
                     <div className="flex items-center justify-between gap-3 mb-3">
                       <div>
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-muted">Archive Bars</p>
+                        <p className="text-xs tracking-normal text-muted">档案柱状图</p>
                         <p className="text-sm text-white mt-1">密度、完成率、活跃度与成绩并列观察</p>
                       </div>
                       <span className="data-pill text-blue">LIVE</span>
@@ -294,7 +349,7 @@ export default function HistoryPage() {
           </div>
         </FadeIn>
 
-        {sortedSessions.length === 0 ? (
+        {sessions.length === 0 ? (
           <FadeIn delay={0.12}>
             <div className="premium-card premium-card-strong rounded-[28px] p-10 md:p-12 text-center">
               <FileText className="w-12 h-12 text-muted mx-auto mb-4" />
@@ -319,7 +374,7 @@ export default function HistoryPage() {
                   <div>
                     <p className="text-sm font-medium text-gold flex items-center gap-2">
                       <History className="w-4 h-4" />
-                      Session Archive List
+                      会话档案列表
                     </p>
                     <p className="text-sm text-white/60 mt-2 leading-6">
                       每条记录都改成了统一的档案卡，直接显示状态、题量、分数与时间信息。
@@ -328,13 +383,116 @@ export default function HistoryPage() {
                   <span className="data-pill text-gold">ARCHIVE</span>
                 </div>
 
+                {/* Search */}
+                <div className="relative mb-4">
+                  <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none transition-colors ${searchFocused ? 'text-white/70' : 'text-muted'}`} />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onFocus={() => setSearchFocused(true)}
+                    onBlur={() => setSearchFocused(false)}
+                    placeholder="搜索会话 ID、状态..."
+                    className="neo-input w-full rounded-2xl py-2.5 pl-11 pr-10 text-sm text-white placeholder:text-muted outline-none"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-md text-white/40 hover:text-white/80 transition-colors"
+                      aria-label="清除搜索"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Sort pills */}
+                <div className="flex flex-wrap gap-2 mb-5">
+                  {([
+                    { key: 'date-desc', label: '最新优先' },
+                    { key: 'date-asc', label: '最早优先' },
+                    { key: 'score-desc', label: '高分优先' },
+                    { key: 'score-asc', label: '低分优先' },
+                  ] as const).map((pill) => (
+                    <button
+                      key={pill.key}
+                      onClick={() => setSortMode(pill.key)}
+                      className={`data-pill transition-colors cursor-pointer ${
+                        sortMode === pill.key
+                          ? 'border-gold/20 bg-gold/10 text-gold'
+                          : 'text-muted hover:text-white'
+                      }`}
+                    >
+                      {pill.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Session list */}
+                {sortedSessions.length === 0 && searchQuery.trim() ? (
+                  <div className="text-center py-10">
+                    <Search className="w-8 h-8 text-muted mx-auto mb-3" />
+                    <p className="text-sm text-white/60">没有找到匹配的会话记录</p>
+                    <p className="text-xs text-muted mt-1">试试其他关键词</p>
+                  </div>
+                ) : (
                 <StaggerContainer className="space-y-4">
+                  <AnimatePresence mode="popLayout">
                   {sortedSessions.map((session) => (
-                    <StaggerItem key={session.id}>
-                      <Link
-                        href={`/report/${session.id}`}
-                        className="strategy-card history-entry block rounded-[24px] p-5 group"
-                      >
+                    <motion.div
+                      key={session.id}
+                      layout
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, x: -60, transition: { duration: 0.25 } }}
+                    >
+                    <StaggerItem>
+                      <div className="strategy-card history-entry rounded-[24px] p-5 group relative">
+                        {/* Delete button */}
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setDeletingId(deletingId === session.id ? null : session.id);
+                          }}
+                          className="absolute top-4 right-4 z-10 p-1.5 rounded-xl text-muted hover:text-danger transition-colors"
+                          aria-label="删除会话"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+
+                        {/* Delete confirmation */}
+                        <AnimatePresence>
+                          {deletingId === session.id && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="overflow-hidden mb-3"
+                            >
+                              <div className="flex items-center gap-3 rounded-2xl border border-danger/20 bg-danger/5 px-4 py-2.5">
+                                <span className="text-xs text-danger">确认删除?</span>
+                                <button
+                                  onClick={() => handleDelete(session.id)}
+                                  className="data-pill text-danger border-danger/20 bg-danger/10 cursor-pointer text-xs"
+                                >
+                                  确认
+                                </button>
+                                <button
+                                  onClick={() => setDeletingId(null)}
+                                  className="data-pill text-muted cursor-pointer text-xs"
+                                >
+                                  取消
+                                </button>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+
+                        <Link
+                          href={`/report/${session.id}`}
+                          className="block"
+                        >
                         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
@@ -361,24 +519,28 @@ export default function HistoryPage() {
                                 <p className={`text-lg font-semibold ${getScoreTone(session.overall_score)}`}>
                                   {session.overall_score ?? '--'}
                                 </p>
-                                <p className="text-[11px] uppercase tracking-[0.16em] text-muted mt-2">
-                                  Score
+                                <p className="text-xs tracking-normal text-muted mt-2">
+                                  分数
                                 </p>
                               </div>
                               <div className="hud-panel rounded-[18px] p-3 text-center">
                                 <p className="text-lg font-semibold text-white">{session.question_count}</p>
-                                <p className="text-[11px] uppercase tracking-[0.16em] text-muted mt-2">
-                                  Questions
+                                <p className="text-xs tracking-normal text-muted mt-2">
+                                  题数
                                 </p>
                               </div>
                             </div>
                             <ChevronRight className="w-5 h-5 text-muted group-hover:text-gold transition-colors shrink-0" />
                           </div>
                         </div>
-                      </Link>
+                        </Link>
+                      </div>
                     </StaggerItem>
+                    </motion.div>
                   ))}
+                  </AnimatePresence>
                 </StaggerContainer>
+                )}
               </div>
             </FadeIn>
 
@@ -388,7 +550,7 @@ export default function HistoryPage() {
                   <div>
                     <p className="text-sm font-medium text-gold flex items-center gap-2">
                       <Trophy className="w-4 h-4" />
-                      Archive Highlights
+                      档案亮点
                     </p>
                     <p className="text-sm text-white/60 mt-2 leading-6">
                       用更简洁的看板方式展示你的历史最佳状态、最近活跃度和下一步查看建议。
@@ -402,7 +564,7 @@ export default function HistoryPage() {
                     <div className="flex items-center gap-3">
                       <Radar className="w-4 h-4 text-blue" />
                       <div>
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-muted">Latest Session</p>
+                        <p className="text-xs tracking-normal text-muted">最近会话</p>
                         <p className="text-sm text-white mt-1">#{sortedSessions[0].id.slice(0, 8)}</p>
                       </div>
                     </div>
@@ -412,7 +574,7 @@ export default function HistoryPage() {
                     <div className="flex items-center gap-3">
                       <Trophy className="w-4 h-4 text-success" />
                       <div>
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-muted">Best Performance</p>
+                        <p className="text-xs tracking-normal text-muted">最佳表现</p>
                         <p className="text-sm text-white mt-1">
                           {bestScore !== null ? `${bestScore} 分` : '暂无已评分记录'}
                         </p>
@@ -424,7 +586,7 @@ export default function HistoryPage() {
                     <div className="flex items-center gap-3">
                       <Sparkles className="w-4 h-4 text-gold" />
                       <div>
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-muted">Next Move</p>
+                        <p className="text-xs tracking-normal text-muted">下一步</p>
                         <p className="text-sm text-white mt-1">
                           优先回看最近一次报告，并对比历史最佳分数的差距。
                         </p>

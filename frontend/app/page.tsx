@@ -33,6 +33,8 @@ import {
   ParticleField,
   TelemetrySparkline,
   SignalBars,
+  Onboarding,
+  useToast,
 } from '@/components';
 
 interface PipelineStage {
@@ -107,6 +109,7 @@ export default function Home() {
   const router = useRouter();
   const store = useAppStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [jdText, setJdText] = useState('');
@@ -114,6 +117,10 @@ export default function Home() {
   const [loadingStep, setLoadingStep] = useState('');
   const [error, setError] = useState('');
   const [dragOver, setDragOver] = useState(false);
+  const [rejectShake, setRejectShake] = useState(false);
+  const [pasteFlash, setPasteFlash] = useState(false);
+  const [particleBurst, setParticleBurst] = useState(false);
+  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
 
   const jdDraftLength = jdText.replace(/\s+/g, '').length;
   const canStart = Boolean(resumeFile && jdText.trim());
@@ -139,7 +146,7 @@ export default function Home() {
   const missionSignals = [
     {
       value: resumeFile ? `${Math.max(1, Math.round(resumeFile.size / 1024))}KB` : '--',
-      label: 'Resume Payload',
+      label: '简历状态',
       hint: resumeFile ? '文件已装载' : '等待简历',
       accent: resumeFile ? 'text-white' : 'text-muted',
     },
@@ -151,13 +158,13 @@ export default function Home() {
     },
     {
       value: store.resumeData ? `${store.resumeData.skills.length}` : 'Auto',
-      label: 'Skill Map',
+      label: '技能图谱',
       hint: store.resumeData ? '最近一次解析' : '启动后提取',
       accent: 'text-gold',
     },
     {
-      value: loading ? 'RUN' : canStart ? 'ARMED' : 'IDLE',
-      label: 'Launch State',
+      value: loading ? 'RUN' : canStart ? '就绪' : 'IDLE',
+      label: '启动状态',
       hint: loading ? loadingStep : canStart ? '可立即启动' : '待准备',
       accent: loading ? 'text-blue' : canStart ? 'text-success' : 'text-muted',
     },
@@ -171,7 +178,7 @@ export default function Home() {
         ? `已接入 ${resumeFile.name}`
         : '等待 PDF / TXT 简历进入系统',
       active: Boolean(resumeFile),
-      complete: Boolean(store.resumeData),
+      complete: completedSteps.has(0) || Boolean(store.resumeData),
     },
     {
       icon: Briefcase,
@@ -180,7 +187,7 @@ export default function Home() {
         ? `已加载 ${jdDraftLength} 字岗位描述`
         : '粘贴岗位描述，建立目标画像',
       active: Boolean(jdText.trim()),
-      complete: Boolean(store.jdData),
+      complete: completedSteps.has(1) || Boolean(store.jdData),
     },
     {
       icon: Cpu,
@@ -189,16 +196,16 @@ export default function Home() {
         ? '启动后融合 JD 与简历技能生成题组'
         : '等待双输入完成后激活建题',
       active: canStart || isGenerating,
-      complete: isGenerating,
+      complete: completedSteps.has(2) || isGenerating,
     },
     {
       icon: ShieldCheck,
-      title: 'Mission Launch',
+      title: '开始面试',
       description: canStart
         ? '当前已满足模拟面试启动条件'
         : '完成 Resume 与 JD 后解锁',
       active: canStart || loading,
-      complete: loading,
+      complete: completedSteps.has(3) || loading,
     },
   ];
 
@@ -243,6 +250,8 @@ export default function Home() {
     }
 
     setError('请上传 PDF 或 TXT 格式的简历');
+    setRejectShake(true);
+    setTimeout(() => setRejectShake(false), 600);
   }, []);
 
   const handleFileSelect = useCallback((event: ChangeEvent<HTMLInputElement>) => {
@@ -261,36 +270,51 @@ export default function Home() {
   const handleStart = async () => {
     if (!resumeFile || !jdText.trim()) {
       setError('请上传简历并填写职位描述');
+      toast('请上传简历并填写职位描述', 'error');
       return;
     }
 
     if (resumeFile.size === 0) {
       setError('简历文件不能为空，请重新选择文件');
+      toast('简历文件不能为空，请重新选择文件', 'error');
       return;
     }
 
     setLoading(true);
     setError('');
+    setCompletedSteps(new Set());
     let currentStep = '简历解析';
 
     try {
       setLoadingStep('解析简历中...');
       const resumeResult = await resumeApi.parse(resumeFile);
       store.setResume(resumeResult.id, resumeResult.parsed_data);
+      setCompletedSteps((prev) => new Set(prev).add(0));
+      toast('简历解析完成', 'success');
 
       currentStep = '职位描述解析';
       setLoadingStep('解析职位描述中...');
       const jdResult = await jdApi.parse(jdText);
       store.setJD(jdResult.id, jdResult.parsed_data);
+      setCompletedSteps((prev) => new Set(prev).add(1));
+      toast('职位描述已解析', 'success');
 
       currentStep = '面试题生成';
       setLoadingStep('生成面试题目中...');
       const session = await interviewApi.generate(resumeResult.id, jdResult.id);
       store.setSession(session.session_id, session.questions);
+      setCompletedSteps((prev) => { const next = new Set(prev); next.add(2); next.add(3); return next; });
+      toast('面试已生成，即将开始', 'success');
+
+      setParticleBurst(true);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      setParticleBurst(false);
 
       router.push(`/interview?sessionId=${session.session_id}`);
     } catch (unknownError: unknown) {
-      setError(buildStartErrorMessage(unknownError, currentStep));
+      const errorMsg = buildStartErrorMessage(unknownError, currentStep);
+      setError(errorMsg);
+      toast(errorMsg, 'error');
       console.error(`[${currentStep}]`, unknownError);
     } finally {
       setLoading(false);
@@ -299,6 +323,7 @@ export default function Home() {
   };
 
   return (
+    <>
     <PageTransition>
       <div className="max-w-6xl mx-auto">
         <FadeIn>
@@ -307,18 +332,18 @@ export default function Home() {
               <div>
                 <div className="section-kicker mb-4">
                   <Sparkles className="w-3.5 h-3.5" />
-                  Neural Interview Console
+                  Interview Practice, Refined
                 </div>
 
                 <h1 className="text-3xl md:text-5xl font-semibold leading-tight max-w-3xl">
-                  <span className="gold-text-glow bg-gradient-to-r from-white via-[#f8ecb9] to-[#d4af37] bg-clip-text text-transparent">
-                    把模拟面试做成一台会实时运转的 AI 控制台
-                  </span>
+                    <span className="bg-gradient-to-r from-white via-[#f2ece4] to-[#d2c0a1] bg-clip-text text-transparent">
+                      把模拟面试打磨成一次更安静、更高级的练习体验
+                    </span>
                 </h1>
 
                 <p className="text-sm md:text-base text-white/70 leading-7 max-w-3xl mt-4">
-                  上传 Resume、粘贴 JD、启动面试任务，系统会自动完成解析、建题、评分与复盘，
-                  并把整条链路以更具未来感的 HUD 方式呈现出来。
+                    上传简历、粘贴 JD、开始一轮练习。系统会自动完成解析、出题、评分与复盘，
+                    同时把整条流程收敛成更克制、更顺滑的专业界面。
                 </p>
 
                 <div className="flex flex-wrap gap-3 mt-6">
@@ -337,7 +362,7 @@ export default function Home() {
                       <p className="text-sm font-semibold text-white tracking-[0.12em] uppercase">
                         {value}
                       </p>
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-muted mt-1">
+                      <p className="text-xs tracking-normal text-muted mt-1">
                         {label}
                       </p>
                     </motion.div>
@@ -354,7 +379,7 @@ export default function Home() {
                       className="signal-card rounded-[22px] p-4"
                     >
                       <p className={`text-xl font-semibold ${signal.accent}`}>{signal.value}</p>
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-muted mt-2">
+                      <p className="text-xs tracking-normal text-muted mt-2">
                         {signal.label}
                       </p>
                       <p className="text-xs text-white/55 mt-3 leading-5">{signal.hint}</p>
@@ -367,13 +392,13 @@ export default function Home() {
                 initial={{ opacity: 0, x: 18 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.14, duration: 0.45 }}
-                className="telemetry-panel corner-frame rounded-[28px] p-5 md:p-6"
+                className="telemetry-panel rounded-[28px] p-5 md:p-6"
               >
-                <ParticleField count={16} tone={loading ? 'blue' : 'mixed'} compact />
+                <ParticleField count={particleBurst ? 32 : 16} tone={particleBurst ? 'gold' : loading ? 'blue' : 'mixed'} compact />
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-[11px] uppercase tracking-[0.2em] text-gold/80">
-                      AI Pipeline Status
+                    <p className="text-xs tracking-normal text-gold/80">
+                      AI 处理状态
                     </p>
                     <h2 className="text-xl font-semibold text-white mt-2">任务管线遥测</h2>
                     <p className="text-sm text-white/60 mt-2 leading-6">
@@ -381,7 +406,7 @@ export default function Home() {
                     </p>
                   </div>
                   <span className="data-pill text-gold">
-                    {loading ? 'RUNNING' : canStart ? 'ARMED' : 'STANDBY'}
+                    {loading ? 'RUNNING' : canStart ? '就绪' : '待命'}
                   </span>
                 </div>
 
@@ -445,14 +470,14 @@ export default function Home() {
                   <div className="chart-panel rounded-[22px] p-4">
                     <div className="flex items-center justify-between gap-3 mb-3">
                       <div>
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-muted">Readiness Curve</p>
+                        <p className="text-xs tracking-normal text-muted">Readiness Curve</p>
                         <p className="text-sm text-white mt-1">从素材接入到任务解锁的跃迁曲线</p>
                       </div>
                       <span className="data-pill text-gold">{readinessScore}%</span>
                     </div>
                     <TelemetrySparkline
                       values={readinessTimeline}
-                      labels={['Idle', 'Resume', 'JD', 'Parse', 'Map', 'Launch']}
+                      labels={['空闲', '简历', '职位', '解析', '匹配', '启动']}
                       tone="gold"
                     />
                   </div>
@@ -460,7 +485,7 @@ export default function Home() {
                   <div className="chart-panel rounded-[22px] p-4">
                     <div className="flex items-center justify-between gap-3 mb-3">
                       <div>
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-muted">Pipeline Density</p>
+                        <p className="text-xs tracking-normal text-muted">流程 Density</p>
                         <p className="text-sm text-white mt-1">每个阶段当前在线程度与活跃强度</p>
                       </div>
                       <span className={`data-pill ${loading ? 'text-blue' : 'text-gold'}`}>
@@ -475,7 +500,7 @@ export default function Home() {
                   {[
                     {
                       value: `${readinessScore}%`,
-                      label: 'Mission Readiness',
+                      label: '准备就绪',
                     },
                     {
                       value: `${store.jdData?.skills_required.length ?? 0}`,
@@ -484,7 +509,7 @@ export default function Home() {
                   ].map((item) => (
                     <div key={item.label} className="hud-panel rounded-2xl p-4">
                       <p className="text-lg font-semibold text-white">{item.value}</p>
-                      <p className="text-[11px] uppercase tracking-[0.16em] text-muted mt-2">
+                      <p className="text-xs tracking-normal text-muted mt-2">
                         {item.label}
                       </p>
                     </div>
@@ -510,12 +535,12 @@ export default function Home() {
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
           <FadeIn delay={0.08}>
-            <div className="premium-card premium-card-strong corner-frame rounded-[28px] p-6 h-full">
+            <div className="premium-card premium-card-strong rounded-[28px] p-6 h-full">
               <div className="flex items-start justify-between gap-4 mb-5">
                 <div>
                   <p className="text-sm font-medium text-gold flex items-center gap-2">
                     <FileText className="w-4 h-4" />
-                    Resume Intake Dock
+                    上传简历
                   </p>
                   <p className="text-sm text-white/60 mt-2">
                     上传简历后，系统会在启动阶段自动抽取技能、项目与经历信号。
@@ -535,9 +560,13 @@ export default function Home() {
                 onDrop={handleFileDrop}
                 onClick={() => fileInputRef.current?.click()}
                 whileHover={{ borderColor: 'rgba(212,175,55,0.48)' }}
+                animate={rejectShake ? { x: [0, -8, 8, -6, 6, -3, 3, 0], borderColor: 'rgba(255,69,58,0.6)' } : { x: 0 }}
+                transition={rejectShake ? { duration: 0.5 } : { duration: 0.3 }}
                 className={`neo-dropzone border-2 border-dashed rounded-[26px] min-h-[250px] p-8 text-center cursor-pointer transition-colors flex items-center justify-center ${
-                  dragOver
-                    ? 'border-gold bg-gold/5'
+                  rejectShake
+                    ? 'border-danger bg-danger/5'
+                    : dragOver
+                      ? 'border-gold bg-gold/5'
                     : resumeFile
                       ? 'border-success/50 bg-success/5'
                       : 'border-border'
@@ -590,7 +619,7 @@ export default function Home() {
                   >
                     <div className="soft-divider" />
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-xs uppercase tracking-[0.18em] text-muted">
+                      <p className="text-xs tracking-normal text-muted">
                         最近一次解析快照
                       </p>
                       <span className="data-pill text-success">SNAPSHOT</span>
@@ -601,7 +630,7 @@ export default function Home() {
                         <p className="text-lg font-semibold text-white">
                           {store.resumeData.skills.length}
                         </p>
-                        <p className="text-[11px] uppercase tracking-[0.16em] text-muted mt-2">
+                        <p className="text-xs tracking-normal text-muted mt-2">
                           Skills
                         </p>
                       </div>
@@ -609,7 +638,7 @@ export default function Home() {
                         <p className="text-lg font-semibold text-white">
                           {store.resumeData.experience.length}
                         </p>
-                        <p className="text-[11px] uppercase tracking-[0.16em] text-muted mt-2">
+                        <p className="text-xs tracking-normal text-muted mt-2">
                           Experience
                         </p>
                       </div>
@@ -617,7 +646,7 @@ export default function Home() {
                         <p className="text-lg font-semibold text-white">
                           {store.resumeData.projects.length}
                         </p>
-                        <p className="text-[11px] uppercase tracking-[0.16em] text-muted mt-2">
+                        <p className="text-xs tracking-normal text-muted mt-2">
                           Projects
                         </p>
                       </div>
@@ -642,12 +671,12 @@ export default function Home() {
           </FadeIn>
 
           <FadeIn delay={0.14}>
-            <div className="premium-card corner-frame rounded-[28px] p-6 h-full">
+            <div className="premium-card rounded-[28px] p-6 h-full">
               <div className="flex items-start justify-between gap-4 mb-5">
                 <div>
                   <p className="text-sm font-medium text-gold flex items-center gap-2">
                     <Briefcase className="w-4 h-4" />
-                    JD Signal Mapping
+                    职位描述
                   </p>
                   <p className="text-sm text-white/60 mt-2">
                     输入岗位描述后，系统会在启动时提取目标技能、要求和职位画像。
@@ -661,16 +690,32 @@ export default function Home() {
               <textarea
                 value={jdText}
                 onChange={(event) => setJdText(event.target.value)}
+                onPaste={() => {
+                  setPasteFlash(true);
+                  setTimeout(() => setPasteFlash(false), 400);
+                }}
                 placeholder={
                   '粘贴职位描述内容...\n\n例如：\n岗位：前端开发工程师\n要求：熟悉 React、TypeScript、工程化与性能优化'
                 }
-                className="neo-textarea w-full h-[250px] rounded-[26px] p-4 text-sm text-white placeholder-muted/50 resize-none focus:outline-none transition-colors"
+                className="neo-textarea w-full rounded-[26px] p-4 text-sm text-white placeholder-muted/50 resize-none focus:outline-none transition-colors overflow-hidden"
+                style={{
+                  minHeight: '250px',
+                  height: 'auto',
+                  ...(pasteFlash
+                    ? { borderColor: 'rgba(212,184,150,0.6)', boxShadow: '0 0 20px rgba(212,184,150,0.15)' }
+                    : {}),
+                }}
+                onInput={(event) => {
+                  const target = event.target as HTMLTextAreaElement;
+                  target.style.height = 'auto';
+                  target.style.height = `${Math.max(250, Math.min(target.scrollHeight, 500))}px`;
+                }}
               />
 
               <div className="grid grid-cols-3 gap-3 mt-5">
                 <div className="signal-card rounded-2xl p-3">
                   <p className="text-lg font-semibold text-white">{jdText.trim() ? jdDraftLength : '--'}</p>
-                  <p className="text-[11px] uppercase tracking-[0.16em] text-muted mt-2">
+                  <p className="text-xs tracking-normal text-muted mt-2">
                     Draft Length
                   </p>
                 </div>
@@ -678,7 +723,7 @@ export default function Home() {
                   <p className="text-lg font-semibold text-white">
                     {store.jdData ? store.jdData.skills_required.length : '--'}
                   </p>
-                  <p className="text-[11px] uppercase tracking-[0.16em] text-muted mt-2">
+                  <p className="text-xs tracking-normal text-muted mt-2">
                     Skill Targets
                   </p>
                 </div>
@@ -686,7 +731,7 @@ export default function Home() {
                   <p className="text-lg font-semibold text-white">
                     {store.jdData ? store.jdData.requirements.length : '--'}
                   </p>
-                  <p className="text-[11px] uppercase tracking-[0.16em] text-muted mt-2">
+                  <p className="text-xs tracking-normal text-muted mt-2">
                     Requirements
                   </p>
                 </div>
@@ -702,7 +747,7 @@ export default function Home() {
                   >
                     <div className="soft-divider" />
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-xs uppercase tracking-[0.18em] text-muted">
+                      <p className="text-xs tracking-normal text-muted">
                         最近一次结构化结果
                       </p>
                       <span className="data-pill text-blue">STRUCTURED</span>
@@ -737,7 +782,7 @@ export default function Home() {
                 <div>
                   <p className="text-sm font-medium text-gold flex items-center gap-2">
                     <Target className="w-4 h-4" />
-                    Neural Match Preview
+                    匹配预览
                   </p>
                   <p className="text-sm text-white/60 mt-2 leading-6">
                     这里提前展示面试启动后的关键聚焦点：素材完整度、结构化结果与候选匹配信号。
@@ -751,7 +796,7 @@ export default function Home() {
                   <p className="text-2xl font-semibold text-white">
                     {store.resumeData && store.jdData ? overlappingSkills.length : '--'}
                   </p>
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-muted mt-2">
+                  <p className="text-xs tracking-normal text-muted mt-2">
                     Skill Overlap
                   </p>
                   <p className="text-xs text-white/55 mt-3 leading-5">
@@ -764,7 +809,7 @@ export default function Home() {
                   <p className="text-2xl font-semibold text-white">
                     {store.resumeData ? store.resumeData.projects.length : '--'}
                   </p>
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-muted mt-2">
+                  <p className="text-xs tracking-normal text-muted mt-2">
                     Project Signals
                   </p>
                   <p className="text-xs text-white/55 mt-3 leading-5">
@@ -775,7 +820,7 @@ export default function Home() {
                   <p className="text-2xl font-semibold text-white">
                     {canStart ? 'READY' : 'LOCKED'}
                   </p>
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-muted mt-2">
+                  <p className="text-xs tracking-normal text-muted mt-2">
                     Interview Mode
                   </p>
                   <p className="text-xs text-white/55 mt-3 leading-5">
@@ -812,7 +857,7 @@ export default function Home() {
                 <div>
                   <p className="text-sm font-medium text-gold flex items-center gap-2">
                     <Activity className="w-4 h-4" />
-                    Mission Launch
+                    开始面试
                   </p>
                   <p className="text-sm text-white/60 mt-2 leading-6">
                     确认输入条件后，一键进入解析、建题与面试会话。启动区也同步展示当前任务完成度。
@@ -838,8 +883,8 @@ export default function Home() {
               </div>
 
               <div className="hud-panel rounded-[24px] p-4 mt-5 mb-5">
-                <div className="flex items-center justify-between text-xs uppercase tracking-[0.16em] text-muted">
-                  <span>Launch readiness</span>
+                <div className="flex items-center justify-between text-xs tracking-normal text-muted">
+                  <span>启动就绪度</span>
                   <span>{readinessScore}%</span>
                 </div>
                 <div className="telemetry-bar mt-3">
@@ -866,5 +911,7 @@ export default function Home() {
         </div>
       </div>
     </PageTransition>
+    <Onboarding />
+    </>
   );
 }

@@ -1,14 +1,16 @@
 ﻿'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useEffect, useState, useCallback, useId, useMemo } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Activity,
   ArrowLeft,
   Cpu,
+  Download,
   Lightbulb,
+  Link2,
   RotateCcw,
   ShieldCheck,
   Sparkles,
@@ -20,6 +22,7 @@ import { interviewApi } from '@/lib/api';
 import {
   AnimatedScore,
   AnimatedProgress,
+  GlowButton,
   PageTransition,
   FadeIn,
   RadarChart,
@@ -90,6 +93,139 @@ function formatReportDate(dateString: string): string {
   }).format(parsedDate);
 }
 
+interface SessionSummary {
+  id: string;
+  status: string;
+  question_count: number;
+  overall_score?: number;
+  created_at?: string;
+  started_at?: string;
+}
+
+function ScoreTrendChart({
+  sessions,
+  currentSessionId,
+}: {
+  sessions: SessionSummary[];
+  currentSessionId: string;
+}) {
+  const router = useRouter();
+  const gradientId = useId().replace(/:/g, '');
+  const recent = sessions
+    .filter((s) => s.overall_score !== undefined)
+    .slice(-10);
+
+  if (recent.length <= 1) {
+    return (
+      <p className="text-sm text-white/50 text-center py-6">
+        完成更多面试后可查看趋势
+      </p>
+    );
+  }
+
+  const scores = recent.map((s) => s.overall_score!);
+  const max = Math.max(...scores, 100);
+  const min = Math.min(...scores, 0);
+  const range = Math.max(max - min, 1);
+
+  const W = 400;
+  const H = 120;
+  const padX = 24;
+  const padY = 12;
+  const innerW = W - padX * 2;
+  const innerH = H - padY * 2;
+
+  const points = recent.map((s, i) => {
+    const x = padX + (i / Math.max(recent.length - 1, 1)) * innerW;
+    const y = padY + innerH - ((s.overall_score! - min) / range) * innerH;
+    return { x, y, score: s.overall_score!, id: s.id };
+  });
+
+  const linePath = points
+    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
+    .join(' ');
+  const areaPath = `${linePath} L ${points[points.length - 1].x} ${H - padY} L ${points[0].x} ${H - padY} Z`;
+
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      className="w-full"
+      style={{ minHeight: 120 }}
+      preserveAspectRatio="xMidYMid meet"
+    >
+      <defs>
+        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="rgba(212,184,150,0.2)" />
+          <stop offset="100%" stopColor="rgba(212,184,150,0.02)" />
+        </linearGradient>
+      </defs>
+      {[0, 1, 2, 3].map((row) => (
+        <line
+          key={row}
+          x1={padX}
+          y1={padY + (innerH / 3) * row}
+          x2={W - padX}
+          y2={padY + (innerH / 3) * row}
+          className="sparkline-grid"
+        />
+      ))}
+      <path d={areaPath} fill={`url(#${gradientId})`} />
+      <path
+        d={linePath}
+        fill="none"
+        stroke="#e8d5b0"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="sparkline-glow"
+      />
+      {points.map((p) => {
+        const isCurrent = p.id === currentSessionId;
+        const baseR = isCurrent ? 5 : 3;
+        return (
+          <circle
+            key={p.id}
+            cx={p.x}
+            cy={p.y}
+            r={baseR}
+            fill={isCurrent ? '#d4b896' : '#8aa8d8'}
+            stroke={isCurrent ? '#fff' : 'none'}
+            strokeWidth={isCurrent ? 1.5 : 0}
+            style={{ cursor: 'pointer', transition: 'r 0.15s ease, stroke 0.15s ease, stroke-width 0.15s ease' }}
+            onClick={() => router.push(`/report/${p.id}`)}
+            onMouseEnter={(e) => {
+              const el = e.currentTarget;
+              el.setAttribute('r', String(baseR + 2));
+              el.setAttribute('stroke', '#fff');
+              el.setAttribute('stroke-width', '1.5');
+            }}
+            onMouseLeave={(e) => {
+              const el = e.currentTarget;
+              el.setAttribute('r', String(baseR));
+              el.setAttribute('stroke', isCurrent ? '#fff' : 'none');
+              el.setAttribute('stroke-width', isCurrent ? '1.5' : '0');
+            }}
+          >
+            <title>{p.score} 分</title>
+          </circle>
+        );
+      })}
+      {points.map((p, i) => (
+        <text
+          key={`label-${p.id}`}
+          x={p.x}
+          y={H - 1}
+          textAnchor="middle"
+          className="fill-white/40"
+          style={{ fontSize: 8 }}
+        >
+          #{i + 1}
+        </text>
+      ))}
+    </svg>
+  );
+}
+
 export default function ReportPage() {
   const params = useParams();
   const sessionId = params.sessionId as string;
@@ -97,6 +233,22 @@ export default function ReportPage() {
   const [report, setReport] = useState<InterviewReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const [copied, setCopied] = useState(false);
+
+  const handleExportPDF = useCallback(() => {
+    window.print();
+  }, []);
+
+  const handleCopyLink = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // fallback
+    }
+  }, []);
 
   useEffect(() => {
     const fetchReport = async () => {
@@ -113,6 +265,10 @@ export default function ReportPage() {
     fetchReport();
   }, [sessionId]);
 
+  useEffect(() => {
+    interviewApi.getSessions().then(setSessions).catch(() => {});
+  }, []);
+
   const loadingCurve = [22, 38, 54, 68, 82, 76, 90];
   const loadingBars = [28, 46, 62, 78, 88];
 
@@ -126,11 +282,11 @@ export default function ReportPage() {
             <div>
               <div className="section-kicker mb-4">
                 <Sparkles className="w-3.5 h-3.5" />
-                Neural Debrief Loading
+                智能复盘加载中
               </div>
 
               <h1 className="text-3xl md:text-5xl font-semibold leading-tight max-w-3xl">
-                <span className="gold-text-glow bg-gradient-to-r from-white via-[#f7e7ae] to-[#d4af37] bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-white via-[#f7e7ae] to-[#d4af37] bg-clip-text text-transparent">
                   报告正在生成，不只是转圈，而是在构建你的战术复盘场
                 </span>
               </h1>
@@ -141,9 +297,9 @@ export default function ReportPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
                 {[
-                  { label: 'Answer Replay', value: 'RUN', hint: '重放答题轨迹', toneClass: 'text-blue' },
-                  { label: 'Pattern Scan', value: 'LIVE', hint: '扫描亮点与短板', toneClass: 'text-gold' },
-                  { label: 'Action Cards', value: 'SYNC', hint: '组织训练建议', toneClass: 'text-success' },
+                  { label: '答题回放', value: 'RUN', hint: '重放答题轨迹', toneClass: 'text-blue' },
+                  { label: '模式扫描', value: 'LIVE', hint: '扫描亮点与短板', toneClass: 'text-gold' },
+                  { label: '行动卡', value: 'SYNC', hint: '组织训练建议', toneClass: 'text-success' },
                 ].map((signal, index) => (
                   <motion.div
                     key={signal.label}
@@ -153,17 +309,17 @@ export default function ReportPage() {
                     className="signal-card rounded-[22px] p-4"
                   >
                     <p className={`text-lg font-semibold ${signal.toneClass}`}>{signal.value}</p>
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted mt-2">{signal.label}</p>
+                    <p className="text-xs tracking-normal text-muted mt-2">{signal.label}</p>
                     <p className="text-xs text-white/55 mt-3 leading-5">{signal.hint}</p>
                   </motion.div>
                 ))}
               </div>
             </div>
 
-            <div className="telemetry-panel corner-frame rounded-[28px] p-6">
+            <div className="telemetry-panel rounded-[28px] p-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.2em] text-gold/80">Live Synthesis</p>
+                  <p className="text-xs tracking-normal text-gold/80">实时合成</p>
                   <h2 className="text-xl font-semibold text-white mt-2">生成中的复盘信号</h2>
                   <p className="text-sm text-white/60 leading-6 mt-2">
                     让等待阶段也具备沉浸感：看到模型正在做什么，而不是只看见一个 spinner。
@@ -180,7 +336,7 @@ export default function ReportPage() {
                 <div className="chart-panel rounded-[22px] p-4">
                   <div className="flex items-center justify-between gap-3 mb-3">
                     <div>
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-muted">Synthesis Curve</p>
+                      <p className="text-xs tracking-normal text-muted">合成趋势</p>
                       <p className="text-sm text-white mt-1">从回放到建议的实时推进</p>
                     </div>
                     <span className="data-pill text-blue">INFER</span>
@@ -195,7 +351,7 @@ export default function ReportPage() {
                 <div className="chart-panel rounded-[22px] p-4">
                   <div className="flex items-center justify-between gap-3 mb-3">
                     <div>
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-muted">Signal Density</p>
+                      <p className="text-xs tracking-normal text-muted">信号密度</p>
                       <p className="text-sm text-white mt-1">多通道并行构建复盘结果</p>
                     </div>
                     <span className="data-pill text-success">5 NODES</span>
@@ -213,7 +369,7 @@ export default function ReportPage() {
                     transition={{ duration: 2.4, repeat: Infinity, delay: index * 0.35 }}
                     className="hud-panel rounded-[20px] p-4"
                   >
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted">Step 0{index + 1}</p>
+                    <p className="text-xs tracking-normal text-muted">Step 0{index + 1}</p>
                     <p className="text-sm text-white mt-2 leading-6">{item}</p>
                   </motion.div>
                 ))}
@@ -273,7 +429,7 @@ export default function ReportPage() {
     {
       value: `${report.overall_score}`,
       label: '综合分',
-      hint: 'Overall Score',
+      hint: '综合评分',
       toneClass: profile.toneClass,
     },
     {
@@ -291,7 +447,7 @@ export default function ReportPage() {
     {
       value: `${report.recommendations.length}`,
       label: '建议数量',
-      hint: 'Action Cards',
+      hint: '行动卡',
       toneClass: 'text-gold',
     },
   ];
@@ -311,10 +467,10 @@ export default function ReportPage() {
                 <div>
                   <div className="section-kicker mb-4">
                     <Sparkles className="w-3.5 h-3.5" />
-                    Neural Debrief
+                    智能复盘
                   </div>
                   <h1 className="text-3xl md:text-5xl font-semibold leading-tight">
-                    <span className="gold-text-glow bg-gradient-to-r from-white via-[#f6e8b3] to-[#d4af37] bg-clip-text text-transparent">
+                    <span className="bg-gradient-to-r from-white via-[#f6e8b3] to-[#d4af37] bg-clip-text text-transparent">
                       面试战术报告
                     </span>
                   </h1>
@@ -324,13 +480,45 @@ export default function ReportPage() {
                 </div>
               </div>
 
-              <Link
-                href="/"
-                className="premium-card px-4 py-3 rounded-2xl text-sm text-muted hover:text-white transition-colors inline-flex items-center gap-2 self-start"
-              >
-                <RotateCcw className="w-4 h-4" />
-                重新开始
-              </Link>
+              <div className="flex items-center gap-2 self-start no-print">
+                <GlowButton variant="outline" onClick={handleExportPDF} className="px-4 py-2.5 rounded-2xl text-sm">
+                  <Download className="w-4 h-4" />
+                  导出 PDF
+                </GlowButton>
+                <GlowButton variant="outline" onClick={handleCopyLink} className="px-4 py-2.5 rounded-2xl text-sm">
+                  <Link2 className="w-4 h-4" />
+                  <AnimatePresence mode="wait">
+                    {copied ? (
+                      <motion.span
+                        key="copied"
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        已复制
+                      </motion.span>
+                    ) : (
+                      <motion.span
+                        key="copy"
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        复制链接
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </GlowButton>
+                <Link
+                  href="/"
+                  className="premium-card px-4 py-3 rounded-2xl text-sm text-muted hover:text-white transition-colors inline-flex items-center gap-2"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  重新开始
+                </Link>
+              </div>
             </div>
 
             <div className="grid gap-6 xl:grid-cols-[1.12fr_0.88fr] xl:items-start">
@@ -360,7 +548,7 @@ export default function ReportPage() {
                       className="signal-card rounded-[22px] p-4"
                     >
                       <p className={`text-lg font-semibold ${signal.toneClass}`}>{signal.value}</p>
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-muted mt-2">
+                      <p className="text-xs tracking-normal text-muted mt-2">
                         {signal.label}
                       </p>
                       <p className="text-xs text-white/55 mt-3 leading-5">{signal.hint}</p>
@@ -373,13 +561,13 @@ export default function ReportPage() {
                 initial={{ opacity: 0, x: 16 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.15, duration: 0.42 }}
-                className="telemetry-panel corner-frame rounded-[28px] p-6"
+                className="telemetry-panel rounded-[28px] p-6"
               >
                 <ParticleField count={16} tone="mixed" compact />
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-[11px] uppercase tracking-[0.2em] text-gold/80">
-                      Performance Tier
+                    <p className="text-xs tracking-normal text-gold/80">
+                      表现等级
                     </p>
                     <h2 className="text-xl font-semibold text-white mt-2">总体现状判定</h2>
                     <p className="text-sm text-white/60 leading-6 mt-2">
@@ -392,27 +580,27 @@ export default function ReportPage() {
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mt-6">
                   <div className="mx-auto md:mx-0">
                     <AnimatedScore score={report.overall_score} size="xl" />
-                    <p className="text-xs uppercase tracking-[0.18em] text-muted text-center mt-4">
-                      Overall combat score
+                    <p className="text-xs tracking-normal text-muted text-center mt-4">
+                      综合战斗力评分
                     </p>
                   </div>
 
                   <div className="grid grid-cols-1 gap-3 flex-1">
                     {[
                       {
-                        label: 'Best Output',
+                        label: '最佳输出',
                         value: `${sectionLabels[strongestSection[0]] || strongestSection[0]} · ${strongestSection[1]}`,
                         icon: TrendingUp,
                         toneClass: 'text-success',
                       },
                       {
-                        label: 'Gap Control',
+                        label: '差距控制',
                         value: `${consistencyIndex}% consistency`,
                         icon: Activity,
                         toneClass: 'text-blue',
                       },
                       {
-                        label: 'Next Loop',
+                        label: '下一轮',
                         value: `${report.recommendations.length} 个重点动作`,
                         icon: ShieldCheck,
                         toneClass: 'text-gold',
@@ -426,7 +614,7 @@ export default function ReportPage() {
                               <Icon className={`w-4 h-4 ${item.toneClass}`} />
                             </div>
                             <div className="min-w-0">
-                              <p className="text-[11px] uppercase tracking-[0.18em] text-muted">
+                              <p className="text-xs tracking-normal text-muted">
                                 {item.label}
                               </p>
                               <p className="text-sm text-white mt-1 truncate">{item.value}</p>
@@ -439,8 +627,8 @@ export default function ReportPage() {
                 </div>
 
                 <div className="hud-panel rounded-[24px] p-4 mt-5">
-                  <div className="flex items-center justify-between text-xs uppercase tracking-[0.16em] text-muted">
-                    <span>Consistency index</span>
+                  <div className="flex items-center justify-between text-xs tracking-normal text-muted">
+                    <span>一致性指数</span>
                     <span>{consistencyIndex}%</span>
                   </div>
                   <div className="telemetry-bar mt-3">
@@ -452,7 +640,7 @@ export default function ReportPage() {
                   <div className="chart-panel rounded-[22px] p-4">
                     <div className="flex items-center justify-between gap-3 mb-3">
                       <div>
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-muted">Debrief Curve</p>
+                        <p className="text-xs tracking-normal text-muted">复盘趋势</p>
                         <p className="text-sm text-white mt-1">总分、稳定性与行动密度的复盘趋势</p>
                       </div>
                       <span className={`data-pill ${profile.toneClass}`}>{generatedAt}</span>
@@ -467,7 +655,7 @@ export default function ReportPage() {
                   <div className="chart-panel rounded-[22px] p-4">
                     <div className="flex items-center justify-between gap-3 mb-3">
                       <div>
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-muted">Section Density</p>
+                        <p className="text-xs tracking-normal text-muted">维度密度</p>
                         <p className="text-sm text-white mt-1">把各维度得分拆成独立能量条</p>
                       </div>
                       <span className="data-pill text-blue">{sectionEntries.length} AXES</span>
@@ -487,7 +675,7 @@ export default function ReportPage() {
                 <div>
                   <p className="text-sm font-medium text-gold flex items-center gap-2">
                     <Target className="w-4 h-4" />
-                    Capability Radar
+                    能力总览
                   </p>
                   <p className="text-sm text-white/60 mt-2 leading-6">
                     从整体能力分布上看三大环节的覆盖情况，方便快速判断哪一段需要补训。
@@ -506,7 +694,7 @@ export default function ReportPage() {
                 {sectionEntries.map(([key, score]) => (
                   <div key={key} className="signal-card rounded-[22px] p-4">
                     <p className="text-lg font-semibold text-white">{score}</p>
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted mt-2">
+                    <p className="text-xs tracking-normal text-muted mt-2">
                       {sectionLabels[key] || key}
                     </p>
                   </div>
@@ -521,7 +709,7 @@ export default function ReportPage() {
                 <div>
                   <p className="text-sm font-medium text-gold flex items-center gap-2">
                     <Cpu className="w-4 h-4" />
-                    Section Breakdown
+                    维度拆解
                   </p>
                   <p className="text-sm text-white/60 mt-2 leading-6">
                     每个环节分别展示分数、进度条与强弱信号，便于定位答题结构中的落差。
@@ -658,8 +846,8 @@ export default function ReportPage() {
                       {String(index + 1).padStart(2, '0')}
                     </div>
                     <div>
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-muted">
-                        Action Card
+                      <p className="text-xs tracking-normal text-muted">
+                        行动卡
                       </p>
                       <p className="text-sm font-medium text-white mt-1">
                         {strategyTitles[index] ?? `第 ${index + 1} 轮优化`}
@@ -672,9 +860,20 @@ export default function ReportPage() {
             </div>
           </div>
         </FadeIn>
+
+        <FadeIn delay={0.4}>
+          <div className="premium-card premium-card-strong rounded-[28px] p-6 mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <TrendingUp className="w-4 h-4 text-gold" />
+              <h2 className="text-sm font-medium text-gold">历史趋势</h2>
+            </div>
+            <p className="text-sm text-white/60 leading-6 mb-5">
+              跨场次平均分走势，点击节点可跳转对应报告。
+            </p>
+            <ScoreTrendChart sessions={sessions} currentSessionId={sessionId} />
+          </div>
+        </FadeIn>
       </div>
     </PageTransition>
   );
 }
-
-

@@ -1,7 +1,9 @@
 'use client';
 
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { ReactNode } from 'react';
+
+const springDefault = { type: 'spring' as const, stiffness: 180, damping: 22, mass: 0.9 };
 
 interface PageTransitionProps {
   children: ReactNode;
@@ -11,10 +13,10 @@ interface PageTransitionProps {
 export function PageTransition({ children, className = '' }: PageTransitionProps) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 18, scale: 0.985, filter: 'blur(10px)' }}
+      initial={{ opacity: 0, y: 18, scale: 0.985, filter: 'blur(4px)' }}
       animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
-      exit={{ opacity: 0, y: -18, scale: 0.985, filter: 'blur(8px)' }}
-      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+      exit={{ opacity: 0, y: -12, scale: 0.99, filter: 'blur(4px)' }}
+      transition={springDefault}
       className={className}
     >
       {children}
@@ -31,9 +33,9 @@ interface FadeInProps {
 export function FadeIn({ children, delay = 0, className = '' }: FadeInProps) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12, filter: 'blur(10px)' }}
+      initial={{ opacity: 0, y: 12, filter: 'blur(4px)' }}
       animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-      transition={{ duration: 0.45, delay, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ ...springDefault, delay }}
       className={className}
     >
       {children}
@@ -47,7 +49,7 @@ interface StaggerContainerProps {
   className?: string;
 }
 
-export function StaggerContainer({ children, staggerDelay = 0.08, className = '' }: StaggerContainerProps) {
+export function StaggerContainer({ children, staggerDelay = 0.06, className = '' }: StaggerContainerProps) {
   return (
     <motion.div
       initial="hidden"
@@ -67,12 +69,12 @@ export function StaggerItem({ children, className = '' }: { children: ReactNode;
   return (
     <motion.div
       variants={{
-        hidden: { opacity: 0, y: 16, filter: 'blur(10px)' },
+        hidden: { opacity: 0, y: 14, filter: 'blur(4px)' },
         visible: {
           opacity: 1,
           y: 0,
           filter: 'blur(0px)',
-          transition: { duration: 0.42, ease: [0.22, 1, 0.36, 1] },
+          transition: springDefault,
         },
       }}
       className={className}

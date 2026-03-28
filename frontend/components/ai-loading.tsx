@@ -64,8 +64,8 @@ export function AILoadingIndicator({ step, compact = false }: AILoadingIndicator
 
   return (
     <div className="premium-card premium-card-strong relative flex flex-col items-center gap-4 rounded-3xl py-8 px-6 overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,rgba(30,144,255,0.12),transparent_38%),radial-gradient(circle_at_top,rgba(212,175,55,0.12),transparent_30%)]" />
-      <div className="absolute inset-0 pointer-events-none opacity-70">
+      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,rgba(138,168,216,0.08),transparent_38%),radial-gradient(circle_at_top,rgba(212,184,150,0.08),transparent_30%)]" />
+      <div className="absolute inset-0 pointer-events-none opacity-50">
         {orbitParticles.map((particle) => (
           <motion.span
             key={particle.id}
@@ -81,8 +81,8 @@ export function AILoadingIndicator({ step, compact = false }: AILoadingIndicator
         {[0, 1, 2].map((ring) => (
           <motion.div
             key={ring}
-            className="absolute inset-0 rounded-full border border-gold/30"
-            animate={{ scale: [1, 1.5 + ring * 0.28], opacity: [0.6, 0] }}
+            className="absolute inset-0 rounded-full border border-gold/20"
+            animate={{ scale: [1, 1.5 + ring * 0.28], opacity: [0.4, 0] }}
             transition={{ duration: 2.1, repeat: Infinity, delay: ring * 0.45, ease: 'easeOut' }}
           />
         ))}
